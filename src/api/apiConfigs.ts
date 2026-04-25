@@ -5,14 +5,24 @@ import axiosInstance from './axiosInstance'
 export interface ApiConfig {
   id: string
   name: string
+  target_system: string
   protocol: string
-  endpoint: string
-  status: 'SUCCESS' | 'FAIL'
+  url: string
+  method: string
+  description?: string
+  endpoint?: string        // 레거시 호환
+  status?: 'SUCCESS' | 'FAIL'
   [key: string]: unknown
 }
 
-export type CreateApiConfigRequest = Omit<ApiConfig, 'id' | 'status'>
-export type UpdateApiConfigRequest = Partial<CreateApiConfigRequest>
+export interface ApiConfigFormData {
+  name: string
+  target_system: string
+  protocol: string
+  url: string
+  method: string
+  description: string
+}
 
 export interface RunInterfaceResponse {
   message?: string
@@ -49,7 +59,7 @@ export async function getApiConfig(id: string): Promise<ApiConfig> {
  * 새 인터페이스 설정을 생성합니다.
  */
 export async function createApiConfig(
-  data: CreateApiConfigRequest,
+  data: ApiConfigFormData,
 ): Promise<ApiConfig> {
   const response = await axiosInstance.post<ApiConfig>('/api-configs', data)
   return response.data
@@ -61,7 +71,7 @@ export async function createApiConfig(
  */
 export async function updateApiConfig(
   id: string,
-  data: UpdateApiConfigRequest,
+  data: Partial<ApiConfigFormData>,
 ): Promise<ApiConfig> {
   const response = await axiosInstance.patch<ApiConfig>(`/api-configs/${id}`, data)
   return response.data
