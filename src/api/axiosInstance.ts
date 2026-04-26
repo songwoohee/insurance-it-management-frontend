@@ -36,6 +36,8 @@ axiosInstance.interceptors.response.use(
     if (error.response?.status === 401) {
       console.warn('인증 만료 또는 권한 없음. 로그아웃 처리합니다.');
       localStorage.removeItem('access_token');
+
+      window.location.href = '/login';
     }
 
     return Promise.reject(error);
