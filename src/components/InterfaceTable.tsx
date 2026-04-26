@@ -685,21 +685,21 @@ export default function InterfaceTable() {
             w={130}
           />
 
-          <Pagination.Root 
-            total={totalPages} 
-            value={currentPage} 
-            onChange={setCurrentPage} 
+          <Pagination.Root
+            total={totalPages}
+            value={currentPage}
+            onChange={setCurrentPage}
             siblings={2}
           >
             <Group gap={5} justify="center">
-              <Pagination.First 
-                onClick={(e) => { e.preventDefault(); setCurrentPage((p) => Math.max(1, p - 10)) }} 
+              <Pagination.First
+                onClick={(e) => { e.preventDefault(); setCurrentPage((p) => Math.max(1, p - 10)) }}
               />
               <Pagination.Previous />
               <Pagination.Items />
               <Pagination.Next />
-              <Pagination.Last 
-                onClick={(e) => { e.preventDefault(); setCurrentPage((p) => Math.min(totalPages, p + 10)) }} 
+              <Pagination.Last
+                onClick={(e) => { e.preventDefault(); setCurrentPage((p) => Math.min(totalPages, p + 10)) }}
               />
             </Group>
           </Pagination.Root>
