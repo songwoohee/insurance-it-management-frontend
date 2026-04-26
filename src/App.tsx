@@ -16,7 +16,6 @@ import {
 import { useDisclosure } from '@mantine/hooks'
 import {
   IconApi,
-  IconChevronRight,
   IconFileAnalytics,
   IconLayoutDashboard,
   IconLogout,

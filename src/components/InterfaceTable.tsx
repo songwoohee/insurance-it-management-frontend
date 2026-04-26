@@ -321,26 +321,6 @@ export default function InterfaceTable() {
     openModal()
   }
 
-  // ── 단건 삭제 ─────────────────────────────────────────────────────────────
-
-  const handleDelete = async (config: ApiConfig) => {
-    if (!window.confirm(`[${config.name}] 인터페이스를 삭제하시겠습니까?`)) return
-    try {
-      await deleteApiConfig(config.id)
-      notifications.show({
-        title: '삭제 완료',
-        message: `[${config.name}]이 삭제되었습니다.`,
-        color: 'teal',
-        icon: <IconCircleCheck size={16} />,
-      })
-      fetchConfigs()
-    } catch (err) {
-      const message = axios.isAxiosError(err)
-        ? err.response?.data?.message ?? err.message
-        : '삭제 중 오류가 발생했습니다.'
-      notifications.show({ title: '삭제 실패', message, color: 'red', icon: <IconAlertTriangle size={16} /> })
-    }
-  }
 
   // ── 선택 삭제 ─────────────────────────────────────────────────────────────
 

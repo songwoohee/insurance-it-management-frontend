@@ -87,14 +87,6 @@ function formatNum(n: number | undefined): string {
   return n == null ? '-' : n.toLocaleString('ko-KR')
 }
 
-function relativeTime(iso: string): string {
-  if (!iso) return '-'
-  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (diff < 60) return `${diff}초 전`
-  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`
-  return `${Math.floor(diff / 3600)}시간 전`
-}
-
 // ─── 컴포넌트: 상단 통계 카드 ─────────────────────────────────────────────────
 
 interface StatTileProps {
@@ -469,7 +461,7 @@ export default function DashboardPage() {
       </Group>
 
       {/* ── MIDDLE: 차트(70%) + 기관 리스트(30%) ── */}
-      <Grid gutter="md">
+      <Grid>
         {/* 좌측: 차트 */}
         <Grid.Col span={{ base: 12, md: 8 }}>
           <Paper radius="md" style={{ ...PAPER_STYLE, height: '100%' }}>

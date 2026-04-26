@@ -485,7 +485,7 @@ export default function ApiLogsPage() {
 
               <Box mb="xl">
                 <Text size="sm" fw={600} mb="xs" c="gray.3">요청 페이로드 (Request)</Text>
-                <ScrollArea.Autosize maxHeight={300} bg="#0f1117" p="sm" style={{ borderRadius: 8, border: '1px solid rgba(99, 107, 183, 0.2)' }}>
+                <ScrollArea.Autosize mah={300} bg="#0f1117" p="sm" style={{ borderRadius: 8, border: '1px solid rgba(99, 107, 183, 0.2)' }}>
                   <Code block bg="transparent" c="indigo.1">
                     {formatJson(raw.requestPayload ?? raw.request_payload ?? '데이터 없음')}
                   </Code>
@@ -494,7 +494,7 @@ export default function ApiLogsPage() {
 
               <Box>
                 <Text size="sm" fw={600} mb="xs" c="gray.3">응답 페이로드 (Response)</Text>
-                <ScrollArea.Autosize maxHeight={400} bg="#0f1117" p="sm" style={{ borderRadius: 8, border: '1px solid rgba(99, 107, 183, 0.2)' }}>
+                <ScrollArea.Autosize mah={400} bg="#0f1117" p="sm" style={{ borderRadius: 8, border: '1px solid rgba(99, 107, 183, 0.2)' }}>
                   <Code block bg="transparent" c="teal.1">
                     {formatJson(raw.responsePayload ?? raw.response_payload ?? '데이터 없음')}
                   </Code>
