@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Badge,
@@ -9,6 +9,7 @@ import {
   Drawer,
   Group,
   Loader,
+  Pagination,
   Paper,
   ScrollArea,
   Select,
@@ -71,12 +72,19 @@ export default function ApiLogsPage() {
   const [logs, setLogs] = useState<ApiLog[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [totalItems, setTotalItems] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
 
   // ── 필터 상태
   const [searchTargetSystem, setSearchTargetSystem] = useState(searchParams.get('target_system') || '')
   const [filterDisplayStatus, setFilterDisplayStatus] = useState<string | null>(null)
   const [searchLoginId, setSearchLoginId] = useState('')
   const [searchCorrelationId, setSearchCorrelationId] = useState('')
+
+  // ── 페이징 상태
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState('50')
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   // ── 상세 보기 Drawer 상태
   const [opened, { open, close }] = useDisclosure(false)
@@ -93,13 +101,17 @@ export default function ApiLogsPage() {
     setLoading(true)
     setError(null)
     try {
-      const data = await getApiLogs({
+      const response = await getApiLogs({
         target_system: searchTargetSystem || undefined,
         display_status: filterDisplayStatus || undefined,
         login_id: searchLoginId || undefined,
         correlation_id: searchCorrelationId || undefined,
+        page: currentPage,
+        limit: Number(itemsPerPage),
       })
-      setLogs(data)
+      setLogs(response.data)
+      setTotalItems(response.total)
+      setTotalPages(response.totalPages)
     } catch (err) {
       const message = axios.isAxiosError(err)
         ? `서버 연결 실패: ${err.message}`
@@ -114,7 +126,7 @@ export default function ApiLogsPage() {
     } finally {
       setLoading(false)
     }
-  }, [debouncedTargetSystem, filterDisplayStatus, debouncedLoginId, debouncedCorrelationId]);
+  }, [debouncedTargetSystem, filterDisplayStatus, debouncedLoginId, debouncedCorrelationId, currentPage, itemsPerPage]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedTargetSystem(searchTargetSystem), 500)
@@ -131,48 +143,19 @@ export default function ApiLogsPage() {
     return () => clearTimeout(timer)
   }, [searchCorrelationId])
 
-  // fetchLogs는 debounce된 값 + status(즉시반응) 기준으로만 실행
+  // fetchLogs는 debounce된 값 + status(즉시반응) + pagination 값 기준으로 실행
   useEffect(() => {
     fetchLogs()
+  }, [debouncedTargetSystem, filterDisplayStatus, debouncedLoginId, debouncedCorrelationId, currentPage, itemsPerPage])
+
+  // 검색어가 변경될 때 페이지 1로 초기화 (검색 후 useEffect가 fetchLogs 호출)
+  useEffect(() => {
+    setCurrentPage(1)
   }, [debouncedTargetSystem, filterDisplayStatus, debouncedLoginId, debouncedCorrelationId])
 
-  // ── 필터링 로직 ────────────────────────────────────────────────────────────
-
-  const filteredLogs = useMemo(() => {
-    return logs.filter((log) => {
-      const raw = log as any
-
-      // target_system: api_configs 안에 있거나 flat하게 내려온 경우 모두 대응
-      const targetSystem: string =
-        raw.api_configs?.target_system ?? raw.target_system ?? ''
-
-      const matchTargetSystem = searchTargetSystem
-        ? targetSystem.toLowerCase().includes(searchTargetSystem.toLowerCase())
-        : true
-
-      // display_status: 백엔드에서 가공해서 내려주는 한글 상태값
-      const displayStatus: string = raw.display_status ?? ''
-      const matchDisplayStatus = filterDisplayStatus
-        ? displayStatus === filterDisplayStatus
-        : true
-
-      // login_id: users 관계 안에 있거나 flat하게 내려온 경우 모두 대응
-      const loginId: string =
-        raw.users?.login_id ?? raw.login_id ?? ''
-      const matchLoginId = searchLoginId
-        ? loginId.toLowerCase().includes(searchLoginId.toLowerCase())
-        : true
-
-      // 로그 식별자 (correlation_id)
-      const correlationId: string =
-        raw.api_configs?.correlation_id ?? raw.correlation_id ?? ''
-      const matchCorrelationId = searchCorrelationId
-        ? correlationId.toLowerCase().includes(searchCorrelationId.toLowerCase())
-        : true
-
-      return matchTargetSystem && matchDisplayStatus && matchLoginId && matchCorrelationId
-    })
-  }, [logs, searchTargetSystem, filterDisplayStatus, searchLoginId, searchCorrelationId])
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [currentPage])
 
   // ── 상세 보기 핸들러 ────────────────────────────────────────────────────────
 
@@ -187,6 +170,7 @@ export default function ApiLogsPage() {
     setFilterDisplayStatus(null)
     setSearchLoginId('')
     setSearchCorrelationId('')
+    setCurrentPage(1)
     // 2. useEffect가 의존성 변화 감지해서 fetchLogs 자동 실행됨
   }
 
@@ -285,7 +269,7 @@ export default function ApiLogsPage() {
 
             <Group gap="sm">
               <Badge variant="light" color="indigo" size="lg">
-                총 {filteredLogs.length}건
+                총 {totalItems}건
               </Badge>
               <Tooltip label="새로고침">
                 <Button size="sm" variant="subtle" color="gray" px="xs" onClick={fetchLogs} loading={loading}>
@@ -300,7 +284,7 @@ export default function ApiLogsPage() {
         </Box>
 
         {/* 테이블 영역 */}
-        <ScrollArea style={{ flex: 1 }}>
+        <ScrollArea style={{ flex: 1 }} viewportRef={scrollRef}>
           <Table striped highlightOnHover verticalSpacing="sm" horizontalSpacing="lg" style={{ minWidth: 900 }}>
             <Table.Thead style={{ background: 'rgba(99, 107, 183, 0.08)' }}>
               <Table.Tr>
@@ -334,7 +318,7 @@ export default function ApiLogsPage() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {filteredLogs.length === 0 ? (
+              {logs.length === 0 ? (
                 <Table.Tr>
                   <Table.Td colSpan={7}>
                     <Center py="xl">
@@ -343,7 +327,7 @@ export default function ApiLogsPage() {
                   </Table.Td>
                 </Table.Tr>
               ) : (
-                filteredLogs.map((log, index) => {
+                logs.map((log, index) => {
                   const raw = log as any
                   const targetSystem: string =
                     raw.api_configs?.target_system ?? raw.target_system ?? '-'
@@ -367,7 +351,7 @@ export default function ApiLogsPage() {
                       {/* 번호 */}
                       <Table.Td>
                         <Text size="sm" c="gray.5" style={{ fontFamily: 'monospace' }}>
-                          {(raw as any).idx ?? index + 1}
+                          {(raw as any).idx ?? ((currentPage - 1) * Number(itemsPerPage) + index + 1)}
                         </Text>
                       </Table.Td>
 
@@ -443,6 +427,47 @@ export default function ApiLogsPage() {
             </Table.Tbody>
           </Table>
         </ScrollArea>
+
+        {/* 하단 제어 바 */}
+        <Group justify="space-between" align="center" px="lg" py="md" style={{ borderTop: '1px solid rgba(99, 107, 183, 0.2)' }}>
+          <Select
+            data={[
+              { value: '50', label: '50개씩 보기' },
+              { value: '100', label: '100개씩 보기' },
+              { value: '300', label: '300개씩 보기' },
+            ]}
+            value={itemsPerPage}
+            onChange={(val) => {
+              setItemsPerPage(val || '50')
+              setCurrentPage(1)
+            }}
+            size="sm"
+            w={130}
+          />
+
+          <Pagination.Root 
+            total={totalPages} 
+            value={currentPage} 
+            onChange={setCurrentPage} 
+            siblings={2}
+          >
+            <Group gap={5} justify="center">
+              <Pagination.First 
+                onClick={(e) => { e.preventDefault(); setCurrentPage((p) => Math.max(1, p - 10)) }} 
+              />
+              <Pagination.Previous />
+              <Pagination.Items />
+              <Pagination.Next />
+              <Pagination.Last 
+                onClick={(e) => { e.preventDefault(); setCurrentPage((p) => Math.min(totalPages, p + 10)) }} 
+              />
+            </Group>
+          </Pagination.Root>
+
+          <Text size="sm" c="gray.4">
+            현재 페이지 <Text span fw={700} c="indigo.2">{currentPage}</Text> / 총 {totalPages}개
+          </Text>
+        </Group>
       </Paper>
 
       {/* 상세 보기 Drawer */}

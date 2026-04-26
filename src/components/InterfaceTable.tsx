@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { notifications } from '@mantine/notifications'
 import { useDisclosure } from '@mantine/hooks'
 import {
@@ -10,6 +10,7 @@ import {
   Group,
   Loader,
   Modal,
+  Pagination,
   Paper,
   ScrollArea,
   Select,
@@ -276,6 +277,13 @@ export default function InterfaceTable() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [runningIds, setRunningIds] = useState<Set<string>>(new Set())
+  const [totalItems, setTotalItems] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+
+  // ── 페이징 상태
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState('50')
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   // 다중 선택
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -290,8 +298,10 @@ export default function InterfaceTable() {
     setLoading(true)
     setError(null)
     try {
-      const data = await getApiConfigs()
-      setConfigs(data)
+      const response = await getApiConfigs({ page: currentPage, limit: Number(itemsPerPage) })
+      setConfigs(response.data)
+      setTotalItems(response.total)
+      setTotalPages(response.totalPages)
       setSelectedIds(new Set()) // 조회 후 선택 초기화
     } catch (err) {
       const message = axios.isAxiosError(err)
@@ -305,7 +315,11 @@ export default function InterfaceTable() {
 
   useEffect(() => {
     fetchConfigs()
-  }, [])
+  }, [currentPage, itemsPerPage])
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [currentPage])
 
   // ── 신규 등록 ──────────────────────────────────────────────────────────────
 
@@ -427,13 +441,16 @@ export default function InterfaceTable() {
           border: '1px solid rgba(99, 107, 183, 0.2)',
           backdropFilter: 'blur(10px)',
           overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          height: 'calc(100vh - 120px)',
         }}
       >
         {/* 툴바 */}
         <Group px="lg" py="md" justify="space-between">
           <Group gap="sm">
             <Text fw={600} size="sm" c="gray.2">인터페이스 목록</Text>
-            <Badge variant="light" color="indigo" size="sm">{configs.length}건</Badge>
+            <Badge variant="light" color="indigo" size="sm">{totalItems}건</Badge>
             {selectedIds.size > 0 && (
               <Badge variant="light" color="red" size="sm">{selectedIds.size}개 선택</Badge>
             )}
@@ -491,7 +508,7 @@ export default function InterfaceTable() {
         </Group>
 
         {/* 테이블 */}
-        <ScrollArea>
+        <ScrollArea style={{ flex: 1 }} viewportRef={scrollRef}>
           <Table striped highlightOnHover verticalSpacing="sm" horizontalSpacing="md" style={{ minWidth: 1100 }}>
             <Table.Thead style={THEAD_STYLE}>
               <Table.Tr>
@@ -566,7 +583,7 @@ export default function InterfaceTable() {
                       {/* 번호 */}
                       <Table.Td>
                         <Text size="sm" c="gray.5" style={{ fontFamily: 'monospace' }}>
-                          {configs.length - index}
+                          {totalItems - ((currentPage - 1) * Number(itemsPerPage) + index)}
                         </Text>
                       </Table.Td>
 
@@ -650,6 +667,47 @@ export default function InterfaceTable() {
             </Table.Tbody>
           </Table>
         </ScrollArea>
+
+        {/* 하단 제어 바 */}
+        <Group justify="space-between" align="center" px="lg" py="md" style={{ borderTop: '1px solid rgba(99, 107, 183, 0.2)' }}>
+          <Select
+            data={[
+              { value: '50', label: '50개씩 보기' },
+              { value: '100', label: '100개씩 보기' },
+              { value: '300', label: '300개씩 보기' },
+            ]}
+            value={itemsPerPage}
+            onChange={(val) => {
+              setItemsPerPage(val || '50')
+              setCurrentPage(1)
+            }}
+            size="sm"
+            w={130}
+          />
+
+          <Pagination.Root 
+            total={totalPages} 
+            value={currentPage} 
+            onChange={setCurrentPage} 
+            siblings={2}
+          >
+            <Group gap={5} justify="center">
+              <Pagination.First 
+                onClick={(e) => { e.preventDefault(); setCurrentPage((p) => Math.max(1, p - 10)) }} 
+              />
+              <Pagination.Previous />
+              <Pagination.Items />
+              <Pagination.Next />
+              <Pagination.Last 
+                onClick={(e) => { e.preventDefault(); setCurrentPage((p) => Math.min(totalPages, p + 10)) }} 
+              />
+            </Group>
+          </Pagination.Root>
+
+          <Text size="sm" c="gray.4">
+            현재 페이지 <Text span fw={700} c="indigo.2">{currentPage}</Text> / 총 {totalPages}개
+          </Text>
+        </Group>
       </Paper>
     </>
   )

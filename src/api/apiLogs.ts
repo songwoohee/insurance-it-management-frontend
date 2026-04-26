@@ -12,11 +12,20 @@ export interface ApiLog {
   [key: string]: unknown
 }
 
+export interface PaginatedResponse<T> {
+  data: T[]
+  total: number
+  currentPage: number
+  totalPages: number
+}
+
 export interface ApiLogSearchParams {
   target_system?: string
   display_status?: string
   login_id?: string
   correlation_id?: string
+  page?: number
+  limit?: number
 }
 
 
@@ -26,8 +35,8 @@ export interface ApiLogSearchParams {
  * GET /api-logs
  * 검색 조건을 쿼리스트링으로 넘겨 필터링된 로그 목록을 반환합니다.
  */
-export async function getApiLogs(params?: ApiLogSearchParams): Promise<ApiLog[]> {
-  const response = await axiosInstance.get<ApiLog[]>('/api-logs', {
+export async function getApiLogs(params?: ApiLogSearchParams): Promise<PaginatedResponse<ApiLog>> {
+  const response = await axiosInstance.get<PaginatedResponse<ApiLog>>('/api-logs', {
     params,
   })
   return response.data

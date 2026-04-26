@@ -34,14 +34,21 @@ export interface RetryLogResponse {
   [key: string]: unknown
 }
 
+export interface PaginatedResponse<T> {
+  data: T[]
+  total: number
+  currentPage: number
+  totalPages: number
+}
+
 // ─── API Configs 서비스 ────────────────────────────────────────────────────────
 
 /**
  * GET /api-configs
  * 등록된 인터페이스 목록 전체를 반환합니다.
  */
-export async function getApiConfigs(): Promise<ApiConfig[]> {
-  const response = await axiosInstance.get<ApiConfig[]>('/api-configs')
+export async function getApiConfigs(params?: { page?: number; limit?: number }): Promise<PaginatedResponse<ApiConfig>> {
+  const response = await axiosInstance.get<PaginatedResponse<ApiConfig>>('/api-configs', { params })
   return response.data
 }
 
