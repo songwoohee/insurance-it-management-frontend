@@ -311,7 +311,7 @@ export default function ApiLogsPage() {
                   <Text size="xs" fw={600} c="gray.4">요청 일시</Text>
                 </Table.Th>
                 <Table.Th>
-                  <Text size="xs" fw={600} c="gray.4">로그 식별자</Text>
+                  <Text size="xs" fw={600} c="gray.4">거래 일련번호</Text>
                 </Table.Th>
                 <Table.Th>
                   <Text size="xs" fw={600} c="gray.4">기관명</Text>

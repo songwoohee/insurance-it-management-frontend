@@ -3,7 +3,7 @@ import axios from 'axios'
 // ─── 공통 Axios 인스턴스 ──────────────────────────────────────────────────────
 
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: import.meta.env.VITE_API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
