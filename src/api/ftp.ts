@@ -77,7 +77,7 @@ export function downloadFtpFileUrl(apiConfigId: string, correlationId: string) {
 export async function bulkDownloadFtpFiles(correlationIds: string[]) {
   const response = await axiosInstance.post(
     '/ftp/bulk-download',
-    { correlation_ids: correlationIds },
+    { correlationIds: correlationIds },
     { responseType: 'blob' }
   )
 
