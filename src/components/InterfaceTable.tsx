@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { notifications } from '@mantine/notifications'
 import { useDisclosure } from '@mantine/hooks'
 import {
@@ -7,6 +8,8 @@ import {
   Button,
   Center,
   Checkbox,
+  Drawer,
+  FileInput,
   Group,
   Loader,
   Modal,
@@ -29,6 +32,9 @@ import {
   IconRefresh,
   IconTrash,
   IconWifi,
+  IconUpload,
+  IconDownload,
+  IconList,
 } from '@tabler/icons-react'
 import axios from 'axios'
 import {
@@ -40,16 +46,17 @@ import {
   runInterface,
   updateApiConfig,
 } from '../api/apiConfigs'
+import { uploadFtpFile, getFtpList, downloadFtpFile } from '../api/ftp'
 
 // ─── 상수 ──────────────────────────────────────────────────────────────────────
 
-const PROTOCOL_OPTIONS = ['REST API', 'SOAP', 'MQ', 'gRPC', 'GraphQL']
+const PROTOCOL_OPTIONS = ['REST', 'SOAP', 'MQ', 'gRPC', 'GraphQL', 'FTP']
 const METHOD_OPTIONS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
 
 const EMPTY_FORM: ApiConfigFormData = {
   name: '',
   target_system: '',
-  protocol: 'REST API',
+  protocol: 'REST',
   url: '',
   method: 'POST',
   description: '',
@@ -65,6 +72,7 @@ function getProtocolColor(protocol: string): string {
     GRPC: 'cyan',
     GRAPHQL: 'pink',
     MQ: 'orange',
+    FTP: 'gray'
   }
   return map[protocol.toUpperCase()] ?? map[protocol] ?? 'gray'
 }
@@ -272,7 +280,13 @@ function ConfigModal({ opened, onClose, editTarget, onSuccess }: ConfigModalProp
 
 // ─── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 
+function getFtpActionType(config: ApiConfig) {
+  if (config.protocol !== 'FTP') return null
+  return config.action_type || 'UNKNOWN'
+}
+
 export default function InterfaceTable() {
+  const navigate = useNavigate()
   const [configs, setConfigs] = useState<ApiConfig[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -291,6 +305,15 @@ export default function InterfaceTable() {
   // 모달
   const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false)
   const [editTarget, setEditTarget] = useState<ApiConfig | null>(null)
+
+  // FTP 모달/드로어 상태
+  const [uploadDrawerOpened, { open: openUploadDrawer, close: closeUploadDrawer }] = useDisclosure(false)
+  const [uploadConfig, setUploadConfig] = useState<ApiConfig | null>(null)
+  const [uploadFiles, setUploadFiles] = useState<File[]>([])
+  const [uploading, setUploading] = useState(false)
+
+  const [listModalOpened, { open: openListModal, close: closeListModal }] = useDisclosure(false)
+  const [listConfig, setListConfig] = useState<ApiConfig | null>(null)
 
   // ── 목록 조회 ──────────────────────────────────────────────────────────────
 
@@ -374,6 +397,69 @@ export default function InterfaceTable() {
     }
   }
 
+  // ── FTP 인터페이스 실행 ──────────────────────────────────────────────────────
+
+  const handleOpenUpload = (config: ApiConfig) => {
+    setUploadConfig(config)
+    setUploadFiles([])
+    openUploadDrawer()
+  }
+
+  const handleSubmitUpload = async () => {
+    if (!uploadConfig || uploadFiles.length === 0) return
+    setUploading(true)
+    try {
+      await uploadFtpFile(uploadConfig.id, uploadFiles)
+      notifications.show({
+        title: '업로드 완료',
+        message: '업로드가 완료되었습니다.',
+        color: 'teal',
+        icon: <IconCircleCheck size={16} />,
+      })
+      closeUploadDrawer()
+    } catch (err) {
+      notifications.show({
+        title: '업로드 실패',
+        message: '파일 업로드 중 오류가 발생했습니다.',
+        color: 'red',
+        icon: <IconAlertTriangle size={16} />,
+      })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleOpenDownload = (config: ApiConfig) => {
+    notifications.show({
+      title: '다운로드 안내',
+      message: '다운로드는 [호출 로그] 페이지에서 개별 또는 일괄 선택하여 진행하실 수 있습니다.',
+      color: 'blue',
+      icon: <IconDownload size={16} />,
+      autoClose: 5000,
+    })
+    // 해당 기관 필터를 걸어서 로그 페이지로 이동
+    navigate(`/logs?target_system=${encodeURIComponent(config.target_system)}`)
+  }
+
+  const handleRunList = async (config: ApiConfig) => {
+    if (runningIds.has(config.id)) return
+    setRunningIds((prev) => new Set(prev).add(config.id))
+    try {
+      await getFtpList(config.id)
+      setListConfig(config)
+      openListModal()
+    } catch (err) {
+      notifications.show({
+        title: '시스템 오류',
+        message: '목록 조회 중 오류가 발생했습니다.',
+        color: 'red',
+        icon: <IconAlertTriangle size={16} />,
+      })
+    } finally {
+      setRunningIds((prev) => { const next = new Set(prev); next.delete(config.id); return next })
+    }
+  }
+
   // ── 체크박스 ──────────────────────────────────────────────────────────────
 
   const allChecked = configs.length > 0 && selectedIds.size === configs.length
@@ -433,6 +519,84 @@ export default function InterfaceTable() {
         editTarget={editTarget}
         onSuccess={fetchConfigs}
       />
+
+      <Drawer
+        opened={uploadDrawerOpened}
+        onClose={closeUploadDrawer}
+        title={<Text fw={700} size="sm" c="gray.1">외부 기관 사진 전송 (업로드)</Text>}
+        position="right"
+        size="md"
+        styles={{
+          content: { background: '#13151f', borderLeft: '1px solid rgba(99,107,183,0.3)' },
+          header: { background: '#13151f', borderBottom: '1px solid rgba(99,107,183,0.2)' },
+          close: { color: '#aaa' },
+        }}
+      >
+        <Box pt="sm">
+          <Text size="sm" c="dimmed" mb="md">업로드할 파일을 선택하거나 드래그 앤 드롭하세요.</Text>
+          <FileInput
+            multiple
+            label="파일 선택"
+            placeholder="클릭하여 파일 선택"
+            value={uploadFiles}
+            onChange={setUploadFiles}
+            clearable
+            styles={{ label: { color: '#adb5bd', fontSize: '0.8rem' } }}
+          />
+
+          <Group justify="flex-end" mt="xl" gap="sm">
+            <Button variant="subtle" color="gray" onClick={closeUploadDrawer} disabled={uploading}>
+              취소
+            </Button>
+            <Button
+              variant="gradient"
+              gradient={{ from: 'indigo', to: 'violet', deg: 135 }}
+              onClick={handleSubmitUpload}
+              loading={uploading}
+              leftSection={uploading ? undefined : <IconUpload size={15} />}
+            >
+              등록
+            </Button>
+          </Group>
+        </Box>
+      </Drawer>
+
+      <Modal
+        opened={listModalOpened}
+        onClose={closeListModal}
+        title={<Text fw={700} size="sm" c="gray.1">파일 목록 조회</Text>}
+        size="sm"
+        centered
+        styles={{
+          content: { background: '#13151f', border: '1px solid rgba(99,107,183,0.3)' },
+          header: { background: '#13151f', borderBottom: '1px solid rgba(99,107,183,0.2)' },
+          close: { color: '#aaa' },
+        }}
+      >
+        <Box py="md" style={{ textAlign: 'center' }}>
+          <Text size="sm" c="gray.3" mb="xl">
+            목록 조회가 완료되었습니다.<br />
+            로그 테이블로 이동하여 목록을 확인하세요.
+          </Text>
+          <Group justify="center" gap="sm">
+            <Button variant="subtle" color="gray" onClick={closeListModal}>
+              닫기
+            </Button>
+            <Button
+              variant="gradient"
+              gradient={{ from: 'indigo', to: 'violet', deg: 135 }}
+              onClick={() => {
+                closeListModal()
+                const target = listConfig?.target_system
+                const url = target ? `/logs?target_system=${encodeURIComponent(target)}` : '/logs'
+                navigate(url)
+              }}
+            >
+              이동하기
+            </Button>
+          </Group>
+        </Box>
+      </Modal>
 
       <Paper
         radius="lg"
@@ -644,20 +808,78 @@ export default function InterfaceTable() {
                       {/* 작업 버튼 */}
                       <Table.Td>
                         <Group gap={4} justify="center">
-                          <Tooltip label="인터페이스 즉시 실행">
-                            <Button
-                              size="xs"
-                              variant="gradient"
-                              gradient={{ from: 'indigo', to: 'violet', deg: 135 }}
-                              px={12}
-                              leftSection={isRunning ? <Loader size={11} color="white" /> : <IconPlayerPlay size={12} />}
-                              loading={isRunning}
-                              disabled={isRunning}
-                              onClick={() => handleRun(config)}
-                            >
-                              실행
-                            </Button>
-                          </Tooltip>
+                          {(() => {
+                            const ftpAction = getFtpActionType(config)
+                            const isRunning = runningIds.has(config.id)
+
+                            if (ftpAction === 'UPLOAD') {
+                              return (
+                                <Tooltip label="FTP 파일 업로드">
+                                  <Button
+                                    size="xs"
+                                    variant="gradient"
+                                    gradient={{ from: 'indigo', to: 'violet', deg: 135 }}
+                                    px={12}
+                                    leftSection={<IconUpload size={12} />}
+                                    onClick={() => handleOpenUpload(config)}
+                                  >
+                                    업로드
+                                  </Button>
+                                </Tooltip>
+                              )
+                            }
+                            if (ftpAction === 'DOWNLOAD') {
+                              return (
+                                <Tooltip label="호출 로그 페이지에서 다운로드">
+                                  <Button
+                                    size="xs"
+                                    variant="outline"
+                                    color="gray"
+                                    px={12}
+                                    leftSection={<IconDownload size={12} />}
+                                    onClick={() => handleOpenDownload(config)}
+                                  >
+                                    로그에서 다운로드
+                                  </Button>
+                                </Tooltip>
+                              )
+                            }
+                            if (ftpAction === 'LIST') {
+                              return (
+                                <Tooltip label="FTP 목록 조회">
+                                  <Button
+                                    size="xs"
+                                    variant="gradient"
+                                    gradient={{ from: 'blue', to: 'cyan', deg: 135 }}
+                                    px={12}
+                                    leftSection={isRunning ? <Loader size={11} color="white" /> : <IconList size={12} />}
+                                    loading={isRunning}
+                                    disabled={isRunning}
+                                    onClick={() => handleRunList(config)}
+                                  >
+                                    목록 조회
+                                  </Button>
+                                </Tooltip>
+                              )
+                            }
+
+                            return (
+                              <Tooltip label="인터페이스 즉시 실행">
+                                <Button
+                                  size="xs"
+                                  variant="gradient"
+                                  gradient={{ from: 'indigo', to: 'violet', deg: 135 }}
+                                  px={12}
+                                  leftSection={isRunning ? <Loader size={11} color="white" /> : <IconPlayerPlay size={12} />}
+                                  loading={isRunning}
+                                  disabled={isRunning}
+                                  onClick={() => handleRun(config)}
+                                >
+                                  실행
+                                </Button>
+                              </Tooltip>
+                            )
+                          })()}
                         </Group>
                       </Table.Td>
                     </Table.Tr>

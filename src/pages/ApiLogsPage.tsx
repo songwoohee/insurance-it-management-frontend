@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Badge,
   Box,
   Button,
   Center,
+  Checkbox,
   Code,
   Drawer,
   Group,
@@ -24,11 +25,13 @@ import {
   IconAlertTriangle,
   IconClock,
   IconCode,
+  IconDownload,
   IconRefresh,
   IconSearch,
   IconWifi,
 } from '@tabler/icons-react'
 import { getApiLogs, type ApiLog } from '../api/apiLogs'
+import { bulkDownloadFtpFiles } from '../api/ftp'
 import axios from 'axios'
 
 // ─── 유틸리티 ──────────────────────────────────────────────────────────────────
@@ -74,6 +77,10 @@ export default function ApiLogsPage() {
   const [error, setError] = useState<string | null>(null)
   const [totalItems, setTotalItems] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+
+  // ── 체크박스 & 다운로드 상태
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [downloading, setDownloading] = useState(false)
 
   // ── 필터 상태
   const [searchTargetSystem, setSearchTargetSystem] = useState(searchParams.get('target_system') || '')
@@ -162,6 +169,72 @@ export default function ApiLogsPage() {
   const handleViewDetails = (log: ApiLog) => {
     setSelectedLog(log)
     open()
+  }
+
+  // ── 체크박스 & 다운로드 로직 ────────────────────────────────────────────────
+  const validLogs = useMemo(() => {
+    return logs.map(log => {
+      const raw = log as any
+      return raw.api_configs?.correlation_id ?? raw.correlation_id ?? '-'
+    }).filter(id => id !== '-')
+  }, [logs])
+
+  const allChecked = validLogs.length > 0 && selectedIds.size === validLogs.length
+  const indeterminate = selectedIds.size > 0 && selectedIds.size < validLogs.length
+
+  const toggleAll = () =>
+    setSelectedIds(allChecked ? new Set() : new Set(validLogs))
+
+  const toggleOne = (id: string) => {
+    if (id === '-') return
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const handleBulkDownload = async () => {
+    if (selectedIds.size === 0) return
+    setDownloading(true)
+    try {
+      const { blob, filename } = await bulkDownloadFtpFiles(Array.from(selectedIds))
+
+      const url = window.URL.createObjectURL(new Blob([blob]))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename || 'Img_download.zip'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+
+      notifications.show({
+        title: '다운로드 시작',
+        message: '파일 다운로드가 시작되었습니다.',
+        color: 'teal',
+      })
+      setSelectedIds(new Set())
+    } catch (err: any) {
+      let errorMessage = '파일을 일괄 다운로드할 수 없습니다.'
+      if (err.response && err.response.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text()
+          const errorJson = JSON.parse(text)
+          if (errorJson.message) errorMessage = errorJson.message
+        } catch (e) { }
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message
+      }
+      notifications.show({
+        title: '다운로드 실패',
+        message: errorMessage,
+        color: 'red',
+        icon: <IconAlertTriangle size={16} />
+      })
+    } finally {
+      setDownloading(false)
+    }
   }
 
   const handleRefresh = () => {
@@ -268,6 +341,19 @@ export default function ApiLogsPage() {
             </Group>
 
             <Group gap="sm">
+              {selectedIds.size > 0 && (
+                <Button
+                  size="sm"
+                  variant="gradient"
+                  gradient={{ from: 'blue', to: 'cyan', deg: 135 }}
+                  leftSection={<IconDownload size={16} />}
+                  onClick={handleBulkDownload}
+                  loading={downloading}
+                  px="md"
+                >
+                  다운로드 ({selectedIds.size}개)
+                </Button>
+              )}
               <Badge variant="light" color="indigo" size="lg">
                 총 {totalItems}건
               </Badge>
@@ -288,6 +374,15 @@ export default function ApiLogsPage() {
           <Table striped highlightOnHover verticalSpacing="sm" horizontalSpacing="lg" style={{ minWidth: 900 }}>
             <Table.Thead style={{ background: 'rgba(99, 107, 183, 0.08)' }}>
               <Table.Tr>
+                <Table.Th style={{ width: 40, textAlign: 'center' }}>
+                  <Checkbox
+                    size="xs"
+                    checked={allChecked}
+                    indeterminate={indeterminate}
+                    onChange={toggleAll}
+                    styles={{ input: { cursor: 'pointer' } }}
+                  />
+                </Table.Th>
                 <Table.Th style={{ width: 56 }}>
                   <Text size="xs" fw={600} c="gray.4">#</Text>
                 </Table.Th>
@@ -323,7 +418,7 @@ export default function ApiLogsPage() {
             <Table.Tbody>
               {logs.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={7}>
+                  <Table.Td colSpan={11}>
                     <Center py="xl">
                       <Text c="dimmed" size="sm">조건에 맞는 로그가 없습니다.</Text>
                     </Center>
@@ -348,11 +443,29 @@ export default function ApiLogsPage() {
                   const apiName: string =
                     raw.api_configs?.name ?? raw.name ?? '-'
 
+                  const isChecked = correlationId !== '-' && selectedIds.has(correlationId)
+
                   return (
                     <Table.Tr
                       key={log.id}
-                      style={{ borderBottom: '1px solid rgba(99, 107, 183, 0.08)' }}
+                      style={{
+                        borderBottom: '1px solid rgba(99, 107, 183, 0.08)',
+                        background: isChecked ? 'rgba(99, 107, 183, 0.08)' : undefined,
+                        transition: 'background 0.15s ease',
+                      }}
                     >
+                      {/* 체크박스 */}
+                      <Table.Td style={{ textAlign: 'center' }}>
+                        {correlationId !== '-' ? (
+                          <Checkbox
+                            size="xs"
+                            checked={isChecked}
+                            onChange={() => toggleOne(correlationId)}
+                            styles={{ input: { cursor: 'pointer' } }}
+                          />
+                        ) : null}
+                      </Table.Td>
+
                       {/* 번호 */}
                       <Table.Td>
                         <Text size="sm" c="gray.5" style={{ fontFamily: 'monospace' }}>

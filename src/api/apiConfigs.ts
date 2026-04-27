@@ -9,6 +9,7 @@ export interface ApiConfig {
   protocol: string
   url: string
   method: string
+  action_type?: 'UPLOAD' | 'LIST' | 'DOWNLOAD'
   description?: string
   endpoint?: string        // 레거시 호환
   status?: 'SUCCESS' | 'FAIL'
