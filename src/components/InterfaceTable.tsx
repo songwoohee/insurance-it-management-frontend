@@ -46,7 +46,7 @@ import {
   runInterface,
   updateApiConfig,
 } from '../api/apiConfigs'
-import { uploadFtpFile, getFtpList, downloadFtpFile } from '../api/ftp'
+import { uploadFtpFile, getFtpList } from '../api/ftp'
 
 // ─── 상수 ──────────────────────────────────────────────────────────────────────
 
@@ -723,7 +723,6 @@ export default function InterfaceTable() {
                     raw.updated_by_user?.login_id ?? '-'
                   const updatedAt: string = raw.updated_at ?? raw.updatedAt ?? ''
                   const isChecked = selectedIds.has(config.id)
-                  const isRunning = runningIds.has(config.id)
 
                   return (
                     <Table.Tr
