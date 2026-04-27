@@ -301,6 +301,9 @@ export default function ApiLogsPage() {
                   <Text size="xs" fw={600} c="gray.4">기관명</Text>
                 </Table.Th>
                 <Table.Th>
+                  <Text size="xs" fw={600} c="gray.4">API명</Text>
+                </Table.Th>
+                <Table.Th>
                   <Text size="xs" fw={600} c="gray.4">상태</Text>
                 </Table.Th>
                 <Table.Th>
@@ -342,6 +345,8 @@ export default function ApiLogsPage() {
                     raw.api_configs?.retry_count ?? raw.retry_count ?? '-'
                   const correlationId: string =
                     raw.api_configs?.correlation_id ?? raw.correlation_id ?? '-'
+                  const apiName: string =
+                    raw.api_configs?.name ?? raw.name ?? '-'
 
                   return (
                     <Table.Tr
@@ -372,6 +377,11 @@ export default function ApiLogsPage() {
                       {/* 기관명 */}
                       <Table.Td>
                         <Text size="sm" fw={500} c="gray.1">{targetSystem}</Text>
+                      </Table.Td>
+
+                      {/* API명 */}
+                      <Table.Td>
+                        <Text size="sm" fw={500} c="gray.1">{apiName}</Text>
                       </Table.Td>
 
                       {/* 상태 — display_status 한글값 + 색상 분기 */}

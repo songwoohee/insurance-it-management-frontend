@@ -10,6 +10,12 @@ export interface ApiLog {
   responseTime?: number
   errorMessage?: string
   [key: string]: unknown
+
+  api_configs?: {
+    name: string;
+    target_system: string;
+    url: string;
+  };
 }
 
 export interface PaginatedResponse<T> {
