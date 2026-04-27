@@ -7,7 +7,7 @@ import axiosInstance from './axiosInstance'
 export async function uploadFtpFile(apiConfigId: string, files: File[]) {
   const formData = new FormData()
   if (files.length > 0) {
-    formData.append('file', files[0])
+    formData.append('files', files[0])
   }
 
   const response = await axiosInstance.post(
