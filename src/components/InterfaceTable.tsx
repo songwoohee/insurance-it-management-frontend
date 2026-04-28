@@ -520,7 +520,12 @@ export default function InterfaceTable() {
 
   // ── 렌더링 ────────────────────────────────────────────────────────────────
 
-  const THEAD_STYLE = { background: 'rgba(99, 107, 183, 0.08)', borderBottom: '1px solid rgba(99, 107, 183, 0.2)' }
+  const THEAD_STYLE = { 
+    background: '#13151f', 
+    borderBottom: '1px solid rgba(99, 107, 183, 0.2)',
+    position: 'relative' as const,
+    zIndex: 10
+  }
   const TH = ({ children, width }: { children: React.ReactNode; width?: number }) => (
     <Table.Th style={width ? { width } : undefined}>
       <Text size="xs" fw={600} c="gray.4">{children}</Text>
@@ -742,7 +747,7 @@ export default function InterfaceTable() {
 
         {/* 테이블 */}
         <ScrollArea style={{ flex: 1 }} viewportRef={scrollRef}>
-          <Table striped highlightOnHover verticalSpacing="sm" horizontalSpacing="md" style={{ minWidth: 1100 }}>
+          <Table stickyHeader striped highlightOnHover verticalSpacing="sm" horizontalSpacing="md" style={{ minWidth: 1100 }}>
             <Table.Thead style={THEAD_STYLE}>
               <Table.Tr>
                 <Table.Th style={{ width: 44 }}>
