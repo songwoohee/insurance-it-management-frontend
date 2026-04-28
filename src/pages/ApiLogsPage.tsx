@@ -372,8 +372,8 @@ export default function ApiLogsPage() {
 
         {/* 테이블 영역 */}
         <ScrollArea style={{ flex: 1 }} viewportRef={scrollRef}>
-          <Table stickyHeader striped highlightOnHover verticalSpacing="sm" horizontalSpacing="lg" style={{ minWidth: 900 }}>
-            <Table.Thead style={{ background: '#13151f', position: 'relative', zIndex: 5 }}>
+          <Table stickyHeader striped highlightOnHover verticalSpacing="sm" horizontalSpacing="lg" style={{ minWidth: 1200 }}>
+            <Table.Thead style={{ background: '#13151f', position: 'relative', zIndex: 5, whiteSpace: 'nowrap' }}>
               <Table.Tr>
                 <Table.Th style={{ width: 40, textAlign: 'center' }}>
                   <Checkbox
