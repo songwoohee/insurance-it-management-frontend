@@ -442,8 +442,8 @@ export default function ApiLogsPage() {
                     log.responseTime ?? raw.execution_time_ms ?? '-'
                   const retryCount: string =
                     raw.api_configs?.retry_count ?? raw.retry_count ?? '-'
-                  const correlationId: string =
-                    raw.api_configs?.correlation_id ?? raw.correlation_id ?? '-'
+                  // const correlationId: string =
+                  //   raw.api_configs?.correlation_id ?? raw.correlation_id ?? '-'
                   const apiName: string =
                     raw.api_configs?.name ?? raw.name ?? '-'
                   const requestGroupId: string = raw.request_group_id ?? raw.requestGroupId ?? '-'
