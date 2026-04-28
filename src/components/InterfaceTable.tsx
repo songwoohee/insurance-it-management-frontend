@@ -520,8 +520,8 @@ export default function InterfaceTable() {
 
   // ── 렌더링 ────────────────────────────────────────────────────────────────
 
-  const THEAD_STYLE = { 
-    background: '#13151f', 
+  const THEAD_STYLE = {
+    background: '#13151f',
     borderBottom: '1px solid rgba(99, 107, 183, 0.2)',
     position: 'relative' as const,
     zIndex: 10,
@@ -567,7 +567,7 @@ export default function InterfaceTable() {
           />
 
           <TextInput
-            label="배치 식별 번호 (Batch ID)"
+            label="업로드 식별 번호 (Upload ID)"
             placeholder="예: 20260427-BSKB"
             description="업로드 식별 번호를 입력하세요."
             value={requestGroupId}

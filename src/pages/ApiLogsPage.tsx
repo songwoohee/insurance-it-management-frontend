@@ -494,7 +494,7 @@ export default function ApiLogsPage() {
                         </Text>
                       </Table.Td>
 
-                      {/* 배치 식별 번호 */}
+                      {/* 업로드 식별 번호 */}
                       <Table.Td>
                         <Text size="sm" c="indigo.2" style={{ fontFamily: 'monospace' }}>
                           {requestGroupId}
