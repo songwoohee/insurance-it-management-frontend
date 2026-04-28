@@ -315,6 +315,10 @@ export default function InterfaceTable() {
   const [listModalOpened, { open: openListModal, close: closeListModal }] = useDisclosure(false)
   const [listConfig, setListConfig] = useState<ApiConfig | null>(null)
 
+  // 그룹 식별자 (배치 번호) 모달
+  const [groupModalOpened, { open: openGroupModal, close: closeGroupModal }] = useDisclosure(false)
+  const [requestGroupId, setRequestGroupId] = useState('')
+
   // ── 목록 조회 ──────────────────────────────────────────────────────────────
 
   const fetchConfigs = async () => {
@@ -402,6 +406,7 @@ export default function InterfaceTable() {
   const handleOpenUpload = (config: ApiConfig) => {
     setUploadConfig(config)
     setUploadFiles([])
+    setRequestGroupId('') // 초기화
     openUploadDrawer()
   }
 
@@ -409,7 +414,7 @@ export default function InterfaceTable() {
     if (!uploadConfig || uploadFiles.length === 0) return
     setUploading(true)
     try {
-      await uploadFtpFile(uploadConfig.id, uploadFiles)
+      await uploadFtpFile(uploadConfig.id, uploadFiles, requestGroupId)
       notifications.show({
         title: '업로드 완료',
         message: '업로드가 완료되었습니다.',
@@ -441,12 +446,23 @@ export default function InterfaceTable() {
     navigate(`/logs?target_system=${encodeURIComponent(config.target_system)}`)
   }
 
-  const handleRunList = async (config: ApiConfig) => {
+  const handleRunList = (config: ApiConfig) => {
+    setListConfig(config)
+    setRequestGroupId('') // 초기화
+    openGroupModal()
+  }
+
+  const handleConfirmRunList = async () => {
+    if (!listConfig) return
+    const config = listConfig
+
     if (runningIds.has(config.id)) return
     setRunningIds((prev) => new Set(prev).add(config.id))
+
+    closeGroupModal() // 입력 모달 닫기
+
     try {
-      await getFtpList(config.id)
-      setListConfig(config)
+      await getFtpList(config.id, requestGroupId)
       openListModal()
     } catch (err) {
       notifications.show({
@@ -544,6 +560,20 @@ export default function InterfaceTable() {
             styles={{ label: { color: '#adb5bd', fontSize: '0.8rem' } }}
           />
 
+          <TextInput
+            label="배치 식별 번호 (Batch ID)"
+            placeholder="예: 20260427-BSKB"
+            description="업로드 식별 번호를 입력하세요."
+            value={requestGroupId}
+            onChange={(e) => setRequestGroupId(e.currentTarget.value)}
+            mt="md"
+            styles={{
+              label: { color: '#adb5bd', fontSize: '0.8rem' },
+              description: { fontSize: '0.7rem' },
+              input: { background: 'rgba(255,255,255,0.05)', color: '#fff' }
+            }}
+          />
+
           <Group justify="flex-end" mt="xl" gap="sm">
             <Button variant="subtle" color="gray" onClick={closeUploadDrawer} disabled={uploading}>
               취소
@@ -560,6 +590,45 @@ export default function InterfaceTable() {
           </Group>
         </Box>
       </Drawer>
+
+      <Modal
+        opened={groupModalOpened}
+        onClose={closeGroupModal}
+        title={<Text fw={700} size="sm" c="gray.1">목록 조회 요청</Text>}
+        size="sm"
+        centered
+        styles={{
+          content: { background: '#13151f', border: '1px solid rgba(99,107,183,0.3)' },
+          header: { background: '#13151f', borderBottom: '1px solid rgba(99,107,183,0.2)' },
+          close: { color: '#aaa' },
+        }}
+      >
+        <Box py="md">
+          <Text size="sm" c="gray.3" mb="md">
+            조회할 <strong>배치 식별 번호</strong>를 입력해주세요.<br />
+            (미입력 시 전체 목록을 조회합니다.)
+          </Text>
+          <TextInput
+            placeholder="예: 20260427-BSKB"
+            value={requestGroupId}
+            onChange={(e) => setRequestGroupId(e.currentTarget.value)}
+            styles={{ input: { background: 'rgba(255,255,255,0.05)', color: '#fff' } }}
+          />
+          <Group justify="flex-end" mt="xl" gap="sm">
+            <Button variant="subtle" color="gray" onClick={closeGroupModal}>
+              취소
+            </Button>
+            <Button
+              variant="gradient"
+              gradient={{ from: 'indigo', to: 'violet', deg: 135 }}
+              onClick={handleConfirmRunList}
+              loading={runningIds.has(listConfig?.id || '')}
+            >
+              요청하기
+            </Button>
+          </Group>
+        </Box>
+      </Modal>
 
       <Modal
         opened={listModalOpened}

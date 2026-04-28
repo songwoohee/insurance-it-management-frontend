@@ -4,10 +4,13 @@ import axiosInstance from './axiosInstance'
  * [POST] 파일 업로드
  * Endpoint: POST /ftp/:apiConfigId/files
  */
-export async function uploadFtpFile(apiConfigId: string, files: File[]) {
+export async function uploadFtpFile(apiConfigId: string, files: File[], requestGroupId?: string) {
   const formData = new FormData()
   if (files.length > 0) {
     formData.append('files', files[0])
+  }
+  if (requestGroupId) {
+    formData.append('requestGroupId', requestGroupId)
   }
 
   const response = await axiosInstance.post(
@@ -26,8 +29,10 @@ export async function uploadFtpFile(apiConfigId: string, files: File[]) {
  * [GET] 파일 목록 조회
  * Endpoint: GET /ftp/:apiConfigId/files
  */
-export async function getFtpList(apiConfigId: string) {
-  const response = await axiosInstance.get(`/ftp/${apiConfigId}/files`)
+export async function getFtpList(apiConfigId: string, requestGroupId?: string) {
+  const response = await axiosInstance.get(`/ftp/${apiConfigId}/files`, {
+    params: { requestGroupId }
+  })
   return response.data
 }
 

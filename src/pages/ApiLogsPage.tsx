@@ -175,7 +175,8 @@ export default function ApiLogsPage() {
   const validLogs = useMemo(() => {
     return logs.map(log => {
       const raw = log as any
-      return raw.api_configs?.correlation_id ?? raw.correlation_id ?? '-'
+      // correlationId가 있으면 사용, 없으면 logId 사용 (사용자 요청 사항)
+      return raw.correlationId ?? raw.correlation_id ?? log.logId ?? '-'
     }).filter(id => id !== '-')
   }, [logs])
 
@@ -393,6 +394,9 @@ export default function ApiLogsPage() {
                   <Text size="xs" fw={600} c="gray.4">거래 일련번호</Text>
                 </Table.Th>
                 <Table.Th>
+                  <Text size="xs" fw={600} c="gray.4">업로드 식별 번호</Text>
+                </Table.Th>
+                <Table.Th>
                   <Text size="xs" fw={600} c="gray.4">기관명</Text>
                 </Table.Th>
                 <Table.Th>
@@ -418,7 +422,7 @@ export default function ApiLogsPage() {
             <Table.Tbody>
               {logs.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={11}>
+                  <Table.Td colSpan={12}>
                     <Center py="xl">
                       <Text c="dimmed" size="sm">조건에 맞는 로그가 없습니다.</Text>
                     </Center>
@@ -442,12 +446,15 @@ export default function ApiLogsPage() {
                     raw.api_configs?.correlation_id ?? raw.correlation_id ?? '-'
                   const apiName: string =
                     raw.api_configs?.name ?? raw.name ?? '-'
+                  const requestGroupId: string = raw.request_group_id ?? raw.requestGroupId ?? '-'
 
-                  const isChecked = correlationId !== '-' && selectedIds.has(correlationId)
+                  // 선택 및 다운로드에 사용할 ID (사용자 요청: correlationId 우선, 없으면 logId)
+                  const effectiveId: string = raw.correlationId ?? raw.correlation_id ?? log.logId ?? '-'
+                  const isChecked = effectiveId !== '-' && selectedIds.has(effectiveId)
 
                   return (
                     <Table.Tr
-                      key={log.id}
+                      key={log.logId || log.id}
                       style={{
                         borderBottom: '1px solid rgba(99, 107, 183, 0.08)',
                         background: isChecked ? 'rgba(99, 107, 183, 0.08)' : undefined,
@@ -456,11 +463,11 @@ export default function ApiLogsPage() {
                     >
                       {/* 체크박스 */}
                       <Table.Td style={{ textAlign: 'center' }}>
-                        {correlationId !== '-' ? (
+                        {effectiveId !== '-' ? (
                           <Checkbox
                             size="xs"
                             checked={isChecked}
-                            onChange={() => toggleOne(correlationId)}
+                            onChange={() => toggleOne(effectiveId)}
                             styles={{ input: { cursor: 'pointer' } }}
                           />
                         ) : null}
@@ -483,7 +490,14 @@ export default function ApiLogsPage() {
                       {/* 로그 식별자 */}
                       <Table.Td>
                         <Text size="sm" c="gray.3" style={{ fontFamily: 'monospace' }}>
-                          {correlationId}
+                          {effectiveId}
+                        </Text>
+                      </Table.Td>
+
+                      {/* 배치 식별 번호 */}
+                      <Table.Td>
+                        <Text size="sm" c="indigo.2" style={{ fontFamily: 'monospace' }}>
+                          {requestGroupId}
                         </Text>
                       </Table.Td>
 

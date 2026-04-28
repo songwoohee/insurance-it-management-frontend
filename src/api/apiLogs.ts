@@ -4,6 +4,8 @@ import axiosInstance from './axiosInstance'
 
 export interface ApiLog {
   id: string
+  logId: string
+  correlationId?: string
   apiConfigId: string
   status: 'SUCCESS' | 'FAIL'
   requestedAt: string
